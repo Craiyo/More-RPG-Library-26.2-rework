@@ -1,0 +1,47 @@
+{
+	"schemaVersion": 1,
+	"id": "more_rpg_classes",
+	"version": "${version}",
+	"name": "More RPG Library",
+	"description": "Library with status effects, entity attributes & Spell engine API additions.",
+	"authors": ["Fichte"
+	],
+	"contact": {
+		"sources": "https://github.com/ProfessorFichte/More-RPG-Classes"
+	},
+	"contributors": [
+		"Rulft44 (Leaf particle & Nature Rune)"
+	],
+	"license": "MIT",
+	"icon": "icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"client": [
+			"com.mrpg_lib.fabric.client.FabricClient"
+		],
+		"main": [
+          "com.mrpg_lib.fabric.FabricMod"
+		],
+		"fabric-datagen": [
+			"net.more_rpg_classes.datagen.MrpgDatagen"
+		]
+	},
+	"mixins": [
+		"more-rpg-classes.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=${fabric_loader_compat_version}",
+		"fabric-api": "*",
+		"minecraft": "${minecraft_compat_version}",
+		"java": ">=25",
+		"spell_engine": ">=${spell_engine_version}",
+		"spell_power": ">=${spell_power_version}"
+	},
+	"custom": {
+		"modmenu": {
+			"links": {
+				"modmenu.discord": "https://discord.gg/AShKd5XrTu"
+			}
+		}
+	}
+}

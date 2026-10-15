@@ -1,0 +1,154 @@
+plugins {
+    id "me.modmuss50.mod-publish-plugin" version "2.1.1"
+}
+
+def platform = project.name
+
+sourceSets {
+    main {
+        java.srcDir rootProject.file('common/src/main/java')
+        resources.srcDirs rootProject.file('common/src/main/resources'), rootProject.file('common/src/main/generated')
+    }
+}
+
+// Function to read the last section from CHANGELOG.md
+def changelog_last_section() {
+    def changelogFile = rootProject.file('CHANGELOG.md')
+    if (!changelogFile.exists()) {
+        return "No changelog available"
+    }
+
+    def content = changelogFile.text
+    def sections = content.split(/(?m)(?=^# )/)
+
+    // Return the first section (most recent) after the split
+    // Remove the first empty element if it exists
+    def recentSection = sections.find { it.trim().startsWith('#') }
+    return recentSection ?: "No changelog available"
+}
+
+fabricApi {
+    configureDataGeneration() {
+        client = true
+        modId = "more_rpg_classes"
+        outputDirectory = rootProject.file('common/src/main/generated')
+    }
+}
+
+repositories {
+    maven { url 'https://maven.kosmx.dev/' }
+    maven { url 'https://maven.shedaniel.me/' }
+    maven {
+        name = 'Modrinth'
+        url = 'https://api.modrinth.com/maven'
+        content {
+            includeGroup 'maven.modrinth'
+        }
+    }
+    maven {
+        name = "TerraformersMC"
+        url = "https://maven.terraformersmc.com/"
+    }
+    maven {
+        name = "Ladysnake Libs"
+        url = 'https://maven.ladysnake.org/releases'
+    }
+    exclusiveContent {
+        forRepository {
+            maven {
+                url = "https://maven.ftb.dev/releases"
+            }
+        }
+        filter {
+            includeGroup"dev.latvian.mods"
+            includeGroup"dev.ftb.mods"
+        }
+    }
+    // JEI Maven currently required by FTB
+    maven {
+        name "ModMaven (JEI)"
+        url "https://modmaven.dev/"
+        content {
+            includeGroup "mezz.jei"
+        }
+    }
+
+    // Accessories
+    maven { url 'https://maven.wispforest.io/releases' }
+
+    mavenLocal()
+}
+
+dependencies {
+    implementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
+    implementation "net.fabricmc.fabric-api:fabric-api:$rootProject.fabric_api_version"
+    implementation("me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}")
+
+    implementation("maven.modrinth:tiny-config:${project.tiny_config_version}-fabric")
+    implementation("maven.modrinth:spell-power:${project.spell_power_version}-fabric")
+    implementation("maven.modrinth:spell-engine:${project.spell_engine_version}-fabric")
+    implementation("maven.modrinth:ranged-weapon-api:${project.ranged_weapon_api_version}-fabric")
+    implementation("maven.modrinth:critical-strike:${project.critical_strike_version}-fabric")
+}
+
+processResources {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    inputs.property 'version', project.version
+
+    filesMatching("fabric.mod.json") {
+        expand(project.properties)
+    }
+}
+
+// Publishing configuration
+def releaseTypeName = (project.findProperty('release_type') ?: 'beta').toString()
+
+// Local convenience alias -- CI invokes the per-destination publish tasks directly.
+tasks.register("publishMod") {
+    dependsOn(build)
+    finalizedBy(tasks.named("publishMods"))
+}
+
+publishMods {
+    file = tasks.named("jar").flatMap { it.archiveFile }
+    changelog = providers.provider { changelog_last_section() }
+    type = releaseTypeName == "release" ? me.modmuss50.mpp.ReleaseType.STABLE
+            : releaseTypeName == "alpha" ? me.modmuss50.mpp.ReleaseType.ALPHA
+            : me.modmuss50.mpp.ReleaseType.BETA
+    version = "${project.version}-${platform}"
+    displayName = "${project.version}-${platform}"
+    modLoaders.add("fabric")
+
+    curseforge {
+        projectId = providers.environmentVariable("CURSEFORGE_PROJECT_ID")
+        accessToken = providers.environmentVariable("CURSEFORGE_API_KEY")
+        minecraftVersions.add(project.minecraft_version)
+        client = true
+        server = true
+        changelogType = "markdown"
+        requires("spell-engine", "spell-power")
+    }
+
+    modrinth {
+        environment = me.modmuss50.mpp.platforms.modrinth.ModrinthEnvironment.CLIENT_AND_SERVER
+        projectId = providers.environmentVariable("MODRINTH_PROJECT_ID")
+        accessToken = providers.environmentVariable("MODRINTH_API_KEY")
+        minecraftVersions.add(project.minecraft_version)
+        requires { slug = "spell-engine" }
+        requires { slug = "spell-power" }
+    }
+
+    github {
+        repository = providers.environmentVariable("GH_OWNER")
+                .zip(providers.environmentVariable("GH_REPO")) { owner, repo -> "$owner/$repo" }
+        accessToken = providers.environmentVariable("GH_API_KEY")
+        tagName = "${project.version}-${platform}"
+        commitish = providers.environmentVariable("GITHUB_SHA")
+    }
+}
+
+// GitHub release last: a failed mod upload aborts the build before the release exists.
+// Ordering only -- unselected tasks are ignored. Must sit after the publishMods block.
+tasks.named("publishGithub") {
+    mustRunAfter(tasks.named("publishCurseforge"), tasks.named("publishModrinth"))
+}
