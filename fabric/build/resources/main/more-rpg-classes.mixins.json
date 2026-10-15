@@ -1,0 +1,24 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "net.more_rpg_classes.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "ControlOwnerMixin",
+    "EntityAttributesMixin",
+    "EntityRelationsMixin",
+    "LivingEntityMixin",
+    "LivingEntityStealth",
+    "PersistentProjectileEntityMixin",
+    "SpellSchoolsMixin",
+    "TrackTargetGoalStealth"
+  ],
+  "client": [
+    "DrawHeartsMixin",
+    "HudMessagesMixin",
+    "LivingEntityRenderStealth"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+	}
+}
